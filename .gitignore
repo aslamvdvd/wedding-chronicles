@@ -42,3 +42,4 @@ Thumbs.db
 .env
 .gcloudignore
 .coverage key.json
+key.json
