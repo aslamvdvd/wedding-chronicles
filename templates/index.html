@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="content-wrapper">
+        <h1 class="title main-title">Tarannum & Arif</h1>
+        <h2 class="title sub-title">Wedding Chronicles</h2>
+        <h3>Capturing Moments, Creating Memories</h3>
+        <div class="navigation-buttons">
+            <a href="{{ url_for('photos') }}" class="btn">
+                <i class="fas fa-images"></i> View Photos
+            </a>
+            <a href="{{ url_for('videos') }}" class="btn">
+                <i class="fas fa-video"></i> Videos
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="title">Photo Albums</h1>
+    <h3>Choose an Album</h3>
+    
+    <div class="navigation-buttons">
+        <a href="{{ url_for('album_photos', album_name='haldi') }}" class="btn">
+            <i class="fas fa-star"></i> Haldi Photos
+        </a>
+        <a href="{{ url_for('album_photos', album_name='mehdi') }}" class="btn">
+            <i class="fas fa-camera"></i> Mehdi Photos
+        </a>
+        <a href="{{ url_for('album_photos', album_name='wedding') }}" class="btn">
+            <i class="fas fa-heart"></i> Wedding Photos
+        </a>
+        <a href="/" class="btn">
+            <i class="fas fa-home"></i> Back to Home
+        </a>
+    </div>
+</div>
+{% endblock %}

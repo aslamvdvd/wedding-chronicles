@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="title">Wedding Photos</h1>
+    <p class="image-count">{{ total_images }} photos</p>
+    
+    <div class="gallery">
+        {% for image in images %}
+        <div class="image-container" onclick="openPopup('{{ url_for('serve_image', filename=image.full) }}', {{ loop.index }}, {{ total_images }})">
+            <img src="{{ url_for('serve_thumbnail', filename=image.filename) }}" alt="Wedding Photo {{ loop.index }}" loading="lazy">
+            <span class="image-number">{{ loop.index }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <nav class="photo-page-nav">
+        <a href="/" class="btn">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="/photos" class="btn">
+            <i class="fas fa-images"></i>
+            <span>Back to Albums</span>
+        </a>
+    </nav>
+</div>
+
+{% include 'image_popup.html' %}
+{% endblock %} 

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <title>Wedding Videos</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Wedding Videos</h1>
+        <h2>Moments in Motion</h2>
+        <div class="video-gallery">
+            <!-- Add your video thumbnails or embedded videos here -->
+            <iframe src="https://www.youtube.com/embed/video_id" class="video" allowfullscreen></iframe>
+            <iframe src="https://www.youtube.com/embed/video_id" class="video" allowfullscreen></iframe>
+            <!-- Add more videos as needed -->
+        </div>
+        <a href="/" class="btn">Back to Home</a>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html> 

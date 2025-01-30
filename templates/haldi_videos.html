@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Haldi Ceremony Videos{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Haldi Ceremony Videos</h1>
+    <h3>Total Videos: {{ total_videos }}</h3>
+    
+    <div class="video-gallery">
+        {% for video in videos %}
+        <div class="video-container" data-index="{{ loop.index }}" 
+             data-video-360="{{ video.urls['360p'] }}"
+             data-video-480="{{ video.urls['480p'] }}"
+             data-video-720="{{ video.urls['720p'] }}"
+             data-video-1080="{{ video.urls['1080p'] }}">
+            <video class="video-preview" preload="metadata" poster="{{ video.thumbnail }}">
+                <source src="{{ video.urls['360p'] }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <div class="video-overlay">
+                <i class="fas fa-play"></i>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Video Modal -->
+<div id="video-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <video id="modal-video" controls>
+            <source src="" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <div class="video-quality-controls">
+            <button class="quality-btn" data-quality="360p">360p</button>
+            <button class="quality-btn" data-quality="480p">480p</button>
+            <button class="quality-btn" data-quality="720p">720p</button>
+            <button class="quality-btn" data-quality="1080p">1080p</button>
+        </div>
+    </div>
+</div>
+{% endblock %} 

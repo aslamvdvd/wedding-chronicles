@@ -1,0 +1,29 @@
+runtime: python39
+instance_class: F1
+
+automatic_scaling:
+  target_cpu_utilization: 0.65
+  min_instances: 1
+  max_instances: 10
+  target_throughput_utilization: 0.6
+
+handlers:
+# General static files
+- url: /static
+  static_dir: static
+  secure: always
+  http_headers:
+    X-Frame-Options: DENY
+    X-Content-Type-Options: nosniff
+    Strict-Transport-Security: max-age=31536000; includeSubDomains
+    X-XSS-Protection: 1; mode=block
+
+- url: /.*
+  script: auto
+  secure: always
+
+env_variables:
+  FLASK_ENV: "production"
+  FLASK_SECRET_KEY: "a7e5b3f9c2d1e8406b9d2c5f4e3a1b8d"
+
+entrypoint: gunicorn -b :$PORT -w 4 --threads 2 app:app 
