@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify, Response
 import os
 from PIL import Image
 import io
@@ -6,34 +6,60 @@ import secrets
 from google.cloud import storage
 from datetime import timedelta
 from google.oauth2 import service_account
+import requests
 
 app = Flask(__name__)
 app.secret_key = 'a7e5b3f9c2d1e8406b9d2c5f4e3a1b8d'
 
 # Initialize Google Cloud Storage client
 try:
+    app.logger.info("Initializing Google Cloud Storage client...")
     # Try loading credentials from service account key file
     credentials = service_account.Credentials.from_service_account_file(
         'key.json',
         scopes=['https://www.googleapis.com/auth/cloud-platform']
     )
+    app.logger.info(f"Loaded credentials for service account: {credentials.service_account_email}")
+    
     storage_client = storage.Client(
         project='tarannumandarif786',
         credentials=credentials
     )
+    app.logger.info("Successfully created storage client")
+    
+    # Test bucket access
+    BUCKET_NAME = 'photo-directory-ta786'
+    bucket = storage_client.bucket(BUCKET_NAME)
+    app.logger.info(f"Testing access to bucket: {BUCKET_NAME}")
+    
+    # Try to list a few blobs to test access
+    try:
+        test_blobs = list(bucket.list_blobs(max_results=1))
+        app.logger.info(f"Successfully listed blobs in bucket {BUCKET_NAME}")
+    except Exception as e:
+        app.logger.error(f"Failed to list blobs in bucket: {str(e)}")
+        raise
+        
 except Exception as e:
+    app.logger.error(f"Error initializing GCS client: {str(e)}")
     # Fall back to default credentials (App Engine environment)
     storage_client = storage.Client(project='tarannumandarif786')
+    app.logger.info("Falling back to default credentials")
 
 BUCKET_NAME = 'photo-directory-ta786'
 bucket = storage_client.bucket(BUCKET_NAME)
 
 def get_blob(path):
     """Helper function to get a blob from GCS"""
-    blob = bucket.blob(path)
-    if not blob.exists():
+    try:
+        blob = bucket.blob(path)
+        if not blob.exists():
+            app.logger.warning(f"Blob does not exist: {path}")
+            return None
+        return blob
+    except Exception as e:
+        app.logger.error(f"Error getting blob {path}: {str(e)}")
         return None
-    return blob
 
 @app.route('/favicon.ico')
 def favicon():
@@ -114,46 +140,34 @@ def videos():
 @app.route('/wedding_videos')
 def wedding_videos():
     try:
-        # List videos in the wedding_videos folder
-        prefix = "wedding_videos/"
-        blobs = bucket.list_blobs(prefix=prefix)
+        app.logger.info("Starting to fetch wedding video thumbnails...")
+        prefix = "wedding_videos/thumbnails/"
+        blobs = list(bucket.list_blobs(prefix=prefix))
         
         videos = []
-        video_files = {}
-        
-        # First, collect all video files and their qualities
         for blob in blobs:
-            if blob.name.lower().endswith('.mp4'):
-                parts = blob.name.split('/')
-                if len(parts) >= 2:
-                    quality = parts[-2]  # Get quality from path (360p, 480p, etc.)
-                    video_name = os.path.splitext(parts[-1])[0]  # Get base name without extension
-                    
-                    if video_name not in video_files:
-                        video_files[video_name] = {'urls': {}}
-                    
-                    # Generate signed URL for this quality
-                    url = blob.generate_signed_url(
+            if blob.name.lower().endswith('.jpg'):
+                video_name = os.path.splitext(os.path.basename(blob.name))[0]
+                app.logger.info(f"Found thumbnail for video: {video_name}")
+                
+                try:
+                    thumbnail_url = blob.generate_signed_url(
                         version="v4",
                         expiration=timedelta(minutes=30),
                         method="GET"
                     )
-                    video_files[video_name]['urls'][quality] = url
+                    
+                    videos.append({
+                        'name': video_name,
+                        'thumbnail': thumbnail_url,
+                        'video_path': f"wedding_videos/videos/{video_name}.MP4"
+                    })
+                except Exception as e:
+                    app.logger.error(f"Error generating thumbnail URL for {video_name}: {str(e)}")
+                    continue
         
-        # Then, get thumbnails and create video objects
-        for video_name, video_data in video_files.items():
-            # Get thumbnail URL
-            thumbnail_blob = bucket.blob(f"{prefix}thumbnails/{video_name}.jpg")
-            thumbnail_url = thumbnail_blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(minutes=30),
-                method="GET"
-            ) if thumbnail_blob.exists() else video_data['urls'].get('360p', '')
-            
-            videos.append({
-                'urls': video_data['urls'],
-                'thumbnail': thumbnail_url
-            })
+        videos.sort(key=lambda x: x['name'])
+        app.logger.info(f"Total videos found: {len(videos)}")
         
         return render_template('wedding_videos.html', videos=videos, total_videos=len(videos))
     except Exception as e:
@@ -163,46 +177,34 @@ def wedding_videos():
 @app.route('/mehdi_videos')
 def mehdi_videos():
     try:
-        # List videos in the mehdi_videos folder
-        prefix = "mehdi_videos/"
-        blobs = bucket.list_blobs(prefix=prefix)
+        app.logger.info("Starting to fetch mehdi video thumbnails...")
+        prefix = "mehdi_videos/thumbnails/"
+        blobs = list(bucket.list_blobs(prefix=prefix))
         
         videos = []
-        video_files = {}
-        
-        # First, collect all video files and their qualities
         for blob in blobs:
-            if blob.name.lower().endswith('.mp4'):
-                parts = blob.name.split('/')
-                if len(parts) >= 2:
-                    quality = parts[-2]  # Get quality from path (360p, 480p, etc.)
-                    video_name = os.path.splitext(parts[-1])[0]  # Get base name without extension
-                    
-                    if video_name not in video_files:
-                        video_files[video_name] = {'urls': {}}
-                    
-                    # Generate signed URL for this quality
-                    url = blob.generate_signed_url(
+            if blob.name.lower().endswith('.jpg'):
+                video_name = os.path.splitext(os.path.basename(blob.name))[0]
+                app.logger.info(f"Found thumbnail for video: {video_name}")
+                
+                try:
+                    thumbnail_url = blob.generate_signed_url(
                         version="v4",
                         expiration=timedelta(minutes=30),
                         method="GET"
                     )
-                    video_files[video_name]['urls'][quality] = url
+                    
+                    videos.append({
+                        'name': video_name,
+                        'thumbnail': thumbnail_url,
+                        'video_path': f"mehdi_videos/videos/{video_name}.MP4"
+                    })
+                except Exception as e:
+                    app.logger.error(f"Error generating thumbnail URL for {video_name}: {str(e)}")
+                    continue
         
-        # Then, get thumbnails and create video objects
-        for video_name, video_data in video_files.items():
-            # Get thumbnail URL
-            thumbnail_blob = bucket.blob(f"{prefix}thumbnails/{video_name}.jpg")
-            thumbnail_url = thumbnail_blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(minutes=30),
-                method="GET"
-            ) if thumbnail_blob.exists() else video_data['urls'].get('360p', '')
-            
-            videos.append({
-                'urls': video_data['urls'],
-                'thumbnail': thumbnail_url
-            })
+        videos.sort(key=lambda x: x['name'])
+        app.logger.info(f"Total videos found: {len(videos)}")
         
         return render_template('mehdi_videos.html', videos=videos, total_videos=len(videos))
     except Exception as e:
@@ -212,51 +214,79 @@ def mehdi_videos():
 @app.route('/haldi_videos')
 def haldi_videos():
     try:
-        # List videos in the haldi_videos folder
-        prefix = "haldi_videos/"
-        blobs = bucket.list_blobs(prefix=prefix)
+        app.logger.info("Starting to fetch haldi video thumbnails...")
+        prefix = "haldi_videos/thumbnails/"
+        blobs = list(bucket.list_blobs(prefix=prefix))
         
         videos = []
-        video_files = {}
-        
-        # First, collect all video files and their qualities
         for blob in blobs:
-            if blob.name.lower().endswith('.mp4'):
-                parts = blob.name.split('/')
-                if len(parts) >= 2:
-                    quality = parts[-2]  # Get quality from path (360p, 480p, etc.)
-                    video_name = os.path.splitext(parts[-1])[0]  # Get base name without extension
-                    
-                    if video_name not in video_files:
-                        video_files[video_name] = {'urls': {}}
-                    
-                    # Generate signed URL for this quality
-                    url = blob.generate_signed_url(
+            if blob.name.lower().endswith('.jpg'):
+                video_name = os.path.splitext(os.path.basename(blob.name))[0]
+                app.logger.info(f"Found thumbnail for video: {video_name}")
+                
+                try:
+                    # Generate signed URL for thumbnail
+                    thumbnail_url = blob.generate_signed_url(
                         version="v4",
                         expiration=timedelta(minutes=30),
                         method="GET"
                     )
-                    video_files[video_name]['urls'][quality] = url
+                    
+                    # Construct video path without quality folder (it will be added later)
+                    video_path = f"haldi_videos/{video_name}.MP4"
+                    
+                    videos.append({
+                        'name': video_name,
+                        'thumbnail': thumbnail_url,
+                        'video_path': video_path
+                    })
+                    app.logger.info(f"Added video: {video_name} with path: {video_path}")
+                    
+                except Exception as e:
+                    app.logger.error(f"Error generating thumbnail URL for {video_name}: {str(e)}")
+                    continue
         
-        # Then, get thumbnails and create video objects
-        for video_name, video_data in video_files.items():
-            # Get thumbnail URL
-            thumbnail_blob = bucket.blob(f"{prefix}thumbnails/{video_name}.jpg")
-            thumbnail_url = thumbnail_blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(minutes=30),
-                method="GET"
-            ) if thumbnail_blob.exists() else video_data['urls'].get('360p', '')
-            
-            videos.append({
-                'urls': video_data['urls'],
-                'thumbnail': thumbnail_url
-            })
+        videos.sort(key=lambda x: x['name'])
+        app.logger.info(f"Total videos found: {len(videos)}")
         
         return render_template('haldi_videos.html', videos=videos, total_videos=len(videos))
     except Exception as e:
         app.logger.error(f"Error loading haldi videos: {str(e)}")
         return render_template('haldi_videos.html', videos=[], total_videos=0)
+
+@app.route('/get_video_url', methods=['POST'])
+def get_video_url():
+    try:
+        data = request.json
+        video_path = data.get('video_path')
+        quality = data.get('quality', '720p')
+        purpose = data.get('purpose', 'stream')
+        
+        if not video_path:
+            app.logger.error("No video path provided")
+            return jsonify({'error': 'No video path provided'}), 400
+            
+        app.logger.info(f"Generating URL for video: {video_path}, quality: {quality}, purpose: {purpose}")
+            
+        # Get the blob
+        blob = bucket.blob(video_path)
+        if not blob.exists():
+            app.logger.error(f"Video not found: {video_path}")
+            return jsonify({'error': 'Video not found'}), 404
+            
+        # Generate signed URL with appropriate expiration
+        expiration = timedelta(minutes=30) if purpose == 'stream' else timedelta(minutes=5)
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=expiration,
+            method="GET"
+        )
+        
+        app.logger.info(f"Successfully generated URL for {video_path}")
+        return jsonify({'url': url})
+    except Exception as e:
+        app.logger.error(f"Error generating video URL: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/serve_image/<path:filename>')
 def serve_image(filename):
@@ -401,6 +431,39 @@ def download_image(album_name, quality_folder, filename, quality):
     except Exception as e:
         app.logger.error(f"Error downloading image {path if 'path' in locals() else 'unknown'}: {str(e)}")
         return "Error processing image", 500
+
+@app.route('/download_video')
+def download_video():
+    url = request.args.get('url')
+    filename = request.args.get('filename')
+    
+    if not url or not filename:
+        return 'Missing parameters', 400
+        
+    try:
+        # Download the video through the server
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        
+        # Create the response
+        def generate():
+            for chunk in response.iter_content(chunk_size=8192):
+                yield chunk
+                
+        headers = {
+            'Content-Type': 'video/mp4',
+            'Content-Disposition': f'attachment; filename="{filename}"'
+        }
+        
+        return Response(
+            generate(),
+            headers=headers,
+            content_type='video/mp4'
+        )
+        
+    except Exception as e:
+        print(f"Error downloading video: {str(e)}")
+        return 'Failed to download video', 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

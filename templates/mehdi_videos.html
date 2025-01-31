@@ -1,23 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}Mehdi Night Videos{% endblock %}
+{% block title %}Mehdi Ceremony Videos{% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1>Mehdi Night Videos</h1>
+    <h1>Mehdi Ceremony Videos</h1>
     <h3>Total Videos: {{ total_videos }}</h3>
     
     <div class="video-gallery">
         {% for video in videos %}
-        <div class="video-container" data-index="{{ loop.index }}" 
-             data-video-360="{{ video.urls['360p'] }}"
-             data-video-480="{{ video.urls['480p'] }}"
-             data-video-720="{{ video.urls['720p'] }}"
-             data-video-1080="{{ video.urls['1080p'] }}">
-            <video class="video-preview" preload="metadata" poster="{{ video.thumbnail }}">
-                <source src="{{ video.urls['360p'] }}" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
+        <div class="video-container" data-video-path="{{ video.video_path }}" data-thumbnail="{{ video.thumbnail }}" data-name="{{ video.name }}">
+            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+                 data-src="{{ video.thumbnail }}" 
+                 alt="Video thumbnail" 
+                 class="video-thumbnail lazy-load"
+                 loading="lazy">
             <div class="video-overlay">
                 <i class="fas fa-play"></i>
             </div>
@@ -26,20 +23,18 @@
     </div>
 </div>
 
-<!-- Video Modal -->
-<div id="video-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-modal">&times;</span>
-        <video id="modal-video" controls>
-            <source src="" type="video/mp4">
-            Your browser does not support the video tag.
-        </video>
-        <div class="video-quality-controls">
-            <button class="quality-btn" data-quality="360p">360p</button>
-            <button class="quality-btn" data-quality="480p">480p</button>
-            <button class="quality-btn" data-quality="720p">720p</button>
-            <button class="quality-btn" data-quality="1080p">1080p</button>
-        </div>
-    </div>
+<!-- Floating Navigation -->
+<div class="photo-page-nav">
+    <a href="{{ url_for('index') }}" class="btn">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+    </a>
+    <a href="{{ url_for('videos') }}" class="btn">
+        <i class="fas fa-arrow-left"></i>
+        <span>Back to Album</span>
+    </a>
 </div>
+
+<!-- Include Video Popup -->
+{% include 'video_popup.html' %}
 {% endblock %} 

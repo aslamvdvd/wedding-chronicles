@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeGallery();
     initializePopupEvents();
     initializeFlashMessages();
+    initializeVideoGallery();
+    initializeLazyLoading();
     
     // Prevent text selection on double click
     document.addEventListener('mousedown', function(e) {
@@ -481,136 +483,379 @@ function navigateImage(direction) {
     }
 }
 
-// Video handling
-document.addEventListener('DOMContentLoaded', function() {
-    initializeVideoGallery();
-});
+// Lazy loading for thumbnails
+function initializeLazyLoading() {
+    const lazyImages = document.querySelectorAll('img.lazy-load');
+    
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.classList.add('loaded');
+                    observer.unobserve(img);
+                }
+            });
+        }, {
+            rootMargin: '50px 0px',
+            threshold: 0.1
+        });
+
+        lazyImages.forEach(img => imageObserver.observe(img));
+    } else {
+        // Fallback for browsers that don't support IntersectionObserver
+        lazyImages.forEach(img => {
+            img.src = img.dataset.src;
+            img.classList.add('loaded');
+        });
+    }
+}
+
+// Video-related functionality
+let currentVideoPath = null;
+let currentVideoName = null;
+let currentVideoIndex = 0;
+let videoContainers = [];
+let player = null;
 
 function initializeVideoGallery() {
-    const videoContainers = document.querySelectorAll('.video-container');
-    const modal = document.getElementById('video-modal');
-    const modalVideo = document.getElementById('modal-video');
-    const closeBtn = document.querySelector('.close-modal');
-    const qualityBtns = document.querySelectorAll('.quality-btn');
+    // Only initialize if we're on a page with video gallery
+    const videoGallery = document.querySelector('.video-gallery');
+    if (!videoGallery) return;
 
-    if (!videoContainers.length) return;
-
-    videoContainers.forEach(container => {
+    videoContainers = Array.from(document.querySelectorAll('.video-container'));
+    videoContainers.forEach((container, index) => {
         container.addEventListener('click', function() {
-            openVideoModal(this);
+            currentVideoIndex = index;
+            const videoPath = this.getAttribute('data-video-path');
+            const videoName = this.getAttribute('data-name');
+            const thumbnailUrl = this.getAttribute('data-thumbnail');
+            openVideoPopup(videoPath, videoName, thumbnailUrl);
         });
     });
 
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeVideoModal);
+    // Initialize Video.js player only if it exists and hasn't been initialized
+    const videoElement = document.getElementById('videoPlayer');
+    if (videoElement && !player) {
+        player = videojs('videoPlayer', {
+            controls: true,
+            preload: 'auto',
+            fluid: true,
+            responsive: true,
+            playsinline: true
+        });
     }
 
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeVideoModal();
+    // Initialize popup close events
+    const popup = document.getElementById('video-popup');
+    const closeBtn = document.querySelector('.close-popup');
+    const downloadModal = document.getElementById('download-modal');
+    
+    if (popup) {
+        popup.addEventListener('click', function(e) {
+            if (e.target === popup) {
+                if (downloadModal && downloadModal.classList.contains('active')) {
+                    closeDownloadModal();
+                } else {
+                    closeVideoPopup();
+                }
             }
         });
     }
-
-    if (qualityBtns) {
-        qualityBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const quality = this.dataset.quality;
-                changeVideoQuality(quality);
-            });
-        });
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeVideoPopup);
     }
 
+    // Handle Escape key
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && modal && modal.style.display === 'block') {
-            closeVideoModal();
+        if (e.key === 'Escape') {
+            if (downloadModal && downloadModal.classList.contains('active')) {
+                closeDownloadModal();
+            } else if (popup && popup.classList.contains('active')) {
+                closeVideoPopup();
+            }
+        }
+    });
+
+    // Add click outside listener for download modal
+    document.addEventListener('click', function(e) {
+        const downloadModal = document.getElementById('download-modal');
+        if (downloadModal && downloadModal.classList.contains('active')) {
+            const isClickInside = downloadModal.contains(e.target);
+            const isDownloadButton = e.target.closest('.download-btn');
+            if (!isClickInside && !isDownloadButton) {
+                closeDownloadModal();
+            }
         }
     });
 }
 
-function openVideoModal(container) {
-    const modal = document.getElementById('video-modal');
-    const modalVideo = document.getElementById('modal-video');
+function getVideoPath(originalPath, quality) {
+    // Extract event type and filename from the original path
+    const pathParts = originalPath.split('/');
+    const eventType = pathParts[0]; // e.g., "wedding_videos", "mehdi_videos", "haldi_videos"
+    const fileName = pathParts[pathParts.length - 1];
     
-    if (!modal || !modalVideo) return;
-
-    // Store current video container reference
-    window.appState.currentVideoContainer = container;
+    // Convert video extension to jpg for thumbnails
+    const thumbnailName = quality === 'thumbnail' 
+        ? fileName.replace(/\.(MP4|mp4)$/, '.jpg')
+        : fileName;
     
-    // Get video URL for default quality (360p)
-    const videoUrl = container.dataset.video360;
+    // Handle thumbnail path
+    if (quality === 'thumbnail') {
+        return `${eventType}/thumbnails/${thumbnailName}`;
+    }
     
-    modalVideo.querySelector('source').src = videoUrl;
-    modalVideo.load(); // Reload the video with new source
-    
-    modal.style.display = 'block';
-    modal.offsetHeight; // Force reflow
-    modal.classList.add('active');
-    
-    // Start playing the video
-    modalVideo.play().catch(function(error) {
-        console.log("Video playback failed:", error);
-    });
-
-    // Update quality buttons state
-    updateQualityButtonsState('360p');
+    // Handle video path
+    return `${eventType}/${quality}/${fileName}`;
 }
 
-function changeVideoQuality(quality) {
-    const modalVideo = document.getElementById('modal-video');
-    const container = window.appState.currentVideoContainer;
+async function openVideoPopup(videoPath, videoName, thumbnailUrl) {
+    const popup = document.getElementById('video-popup');
+    const thumbnail = document.querySelector('.video-thumbnail');
+    const thumbnailContainer = document.querySelector('.video-thumbnail-container');
+    const loadingOverlay = document.querySelector('.video-loading-overlay');
+    const errorOverlay = document.querySelector('.video-error-overlay');
+    const videoNameElement = document.querySelector('.video-name');
     
-    if (!modalVideo || !container) return;
+    if (!popup || !player) return;
 
-    // Get current playback time
-    const currentTime = modalVideo.currentTime;
-    
-    // Get video URL for selected quality
-    const videoUrl = container.dataset[`video${quality.replace('p', '')}`];
-    
-    // Update video source
-    modalVideo.querySelector('source').src = videoUrl;
-    modalVideo.load();
-    
-    // Restore playback position and continue playing
-    modalVideo.addEventListener('loadedmetadata', function onLoaded() {
-        modalVideo.currentTime = currentTime;
-        modalVideo.play();
-        modalVideo.removeEventListener('loadedmetadata', onLoaded);
-    });
+    currentVideoPath = videoPath;
+    currentVideoName = videoName;
 
-    // Update quality buttons state
-    updateQualityButtonsState(quality);
+    // Reset state
+    videoNameElement.textContent = videoName;
+    loadingOverlay.style.display = 'none';
+    errorOverlay.style.display = 'none';
+    
+    // Reset video player
+    player.reset();
+    player.hide();
+    
+    // Show thumbnail
+    if (thumbnail && thumbnailUrl) {
+        thumbnailContainer.style.display = 'flex';
+        thumbnail.src = thumbnailUrl;
+    }
+
+    // Show popup
+    popup.style.display = 'flex';
+    popup.offsetHeight; // Force reflow
+    popup.classList.add('active');
 }
 
-function updateQualityButtonsState(activeQuality) {
-    const qualityBtns = document.querySelectorAll('.quality-btn');
-    qualityBtns.forEach(btn => {
-        if (btn.dataset.quality === activeQuality) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
+async function playVideo() {
+    const thumbnailContainer = document.querySelector('.video-thumbnail-container');
+    const loadingOverlay = document.querySelector('.video-loading-overlay');
+    const errorOverlay = document.querySelector('.video-error-overlay');
+    
+    if (!player || !currentVideoPath) return;
+
+    try {
+        loadingOverlay.style.display = 'flex';
+        thumbnailContainer.style.display = 'none';
+        
+        // Get video URL for 720p streaming
+        const response = await fetch('/get_video_url', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                video_path: getVideoPath(currentVideoPath, '720p'),
+                quality: '720p',
+                purpose: 'stream'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to get video URL');
         }
-    });
+
+        const data = await response.json();
+        
+        // Set up video player
+        player.src({ src: data.url, type: 'video/mp4' });
+        player.show();
+        
+        player.on('loadeddata', function() {
+            loadingOverlay.style.display = 'none';
+            player.play();
+        });
+
+        player.on('error', function(e) {
+            console.error('Video error:', e);
+            loadingOverlay.style.display = 'none';
+            errorOverlay.style.display = 'flex';
+            thumbnailContainer.style.display = 'flex'; // Show thumbnail again on error
+        });
+
+    } catch (error) {
+        console.error('Error loading video:', error);
+        loadingOverlay.style.display = 'none';
+        errorOverlay.style.display = 'flex';
+        thumbnailContainer.style.display = 'flex'; // Show thumbnail again on error
+    }
 }
 
-function closeVideoModal() {
-    const modal = document.getElementById('video-modal');
-    const modalVideo = document.getElementById('modal-video');
-    
-    if (!modal || !modalVideo) return;
+function showPreviousVideo() {
+    if (currentVideoIndex > 0) {
+        if (player) {
+            player.pause();
+            player.reset();
+            player.hide();
+        }
+        
+        const wrapper = document.querySelector('.video-wrapper');
+        wrapper.classList.add('slide-right');
+        
+        setTimeout(() => {
+            currentVideoIndex--;
+            const container = videoContainers[currentVideoIndex];
+            const videoPath = container.getAttribute('data-video-path');
+            const videoName = container.getAttribute('data-name');
+            const thumbnailUrl = container.getAttribute('data-thumbnail');
+            
+            wrapper.classList.remove('slide-right');
+            openVideoPopup(videoPath, videoName, thumbnailUrl);
+        }, 300);
+    }
+}
 
-    modal.classList.remove('active');
+function showNextVideo() {
+    if (currentVideoIndex < videoContainers.length - 1) {
+        if (player) {
+            player.pause();
+            player.reset();
+            player.hide();
+        }
+        
+        const wrapper = document.querySelector('.video-wrapper');
+        wrapper.classList.add('slide-left');
+        
+        setTimeout(() => {
+            currentVideoIndex++;
+            const container = videoContainers[currentVideoIndex];
+            const videoPath = container.getAttribute('data-video-path');
+            const videoName = container.getAttribute('data-name');
+            const thumbnailUrl = container.getAttribute('data-thumbnail');
+            
+            wrapper.classList.remove('slide-left');
+            openVideoPopup(videoPath, videoName, thumbnailUrl);
+        }, 300);
+    }
+}
+
+function closeVideoPopup() {
+    const popup = document.getElementById('video-popup');
+    const thumbnailContainer = document.querySelector('.video-thumbnail-container');
     
-    // Pause the video
-    modalVideo.pause();
+    if (!popup || !player) return;
     
-    // Wait for transition to complete before hiding
+    // Stop video and reset player
+    player.pause();
+    player.reset();
+    player.hide();
+    
+    // Reset state
+    currentVideoPath = null;
+    currentVideoName = null;
+    
+    // Reset display
+    if (thumbnailContainer) {
+        thumbnailContainer.style.display = 'flex';
+    }
+    
+    // Hide popup
+    popup.classList.remove('active');
     setTimeout(() => {
-        modal.style.display = 'none';
-        modalVideo.querySelector('source').src = '';
-        modalVideo.load(); // Clear the video
-        window.appState.currentVideoContainer = null;
+        popup.style.display = 'none';
     }, 300);
+}
+
+function showDownloadModal() {
+    const modal = document.getElementById('download-modal');
+    if (modal) {
+        modal.style.display = 'block';
+        modal.offsetHeight; // Force reflow
+        modal.classList.add('active');
+    }
+}
+
+function closeDownloadModal() {
+    const modal = document.getElementById('download-modal');
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+}
+
+async function downloadVideo(quality) {
+    if (!currentVideoPath) return;
+
+    try {
+        const response = await fetch('/get_video_url', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                video_path: getVideoPath(currentVideoPath, quality),
+                quality: quality,
+                purpose: 'download'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to get video URL');
+        }
+
+        const data = await response.json();
+        
+        // Create a form to handle the download
+        const form = document.createElement('form');
+        form.method = 'GET';
+        form.action = '/download_video';
+        
+        // Add the video URL as a hidden input
+        const urlInput = document.createElement('input');
+        urlInput.type = 'hidden';
+        urlInput.name = 'url';
+        urlInput.value = data.url;
+        
+        // Add the filename as a hidden input
+        const filenameInput = document.createElement('input');
+        filenameInput.type = 'hidden';
+        filenameInput.name = 'filename';
+        filenameInput.value = `${currentVideoName}_${quality}.mp4`;
+        
+        form.appendChild(urlInput);
+        form.appendChild(filenameInput);
+        document.body.appendChild(form);
+        
+        form.submit();
+        
+        // Remove the form after submission
+        setTimeout(() => {
+            document.body.removeChild(form);
+        }, 100);
+
+        // Close the download modal
+        closeDownloadModal();
+
+    } catch (error) {
+        console.error('Error downloading video:', error);
+        alert('Failed to download video. Please try again.');
+    }
+}
+
+// Initialize when DOM is loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeVideoGallery);
+} else {
+    initializeVideoGallery();
 }
