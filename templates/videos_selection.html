@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Videos Album{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="title">Videos Albums</h1>
+    <h3>Choose an Album</h3>
+    
+    <div class="navigation-buttons">
+        <a href="{{ url_for('haldi_videos') }}" class="btn">
+            <i class="fas fa-star"></i> Haldi Videos
+        </a>
+        <a href="{{ url_for('mehdi_videos') }}" class="btn">
+            <i class="fas fa-camera"></i> Mehdi Videos
+        </a>
+        <a href="{{ url_for('wedding_videos') }}" class="btn">
+            <i class="fas fa-heart"></i> Wedding Videos
+        </a>
+        <a href="/" class="btn">
+            <i class="fas fa-home"></i> Back to Home
+        </a>
+    </div>
+</div>
+{% endblock %}

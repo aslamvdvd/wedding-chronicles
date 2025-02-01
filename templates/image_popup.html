@@ -1,0 +1,40 @@
+<div id="image-popup">
+    <button class="close-popup" onclick="closeTopModal()">
+        <i class="fas fa-times"></i>
+    </button>
+    <img id="popup-img" src="" alt="Full size image">
+    <div class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+    <div class="popup-controls">
+        <button onclick="navigateImage(-1)" class="nav-btn">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <button onclick="showQualityModal()" class="download-btn">
+            <i class="fas fa-download"></i>
+        </button>
+        <button onclick="navigateImage(1)" class="nav-btn">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<div class="quality-modal">
+    <h3>Select Download Quality</h3>
+    <div class="quality-option" onclick="downloadWithQuality('low')">
+        <i class="fas fa-mobile-alt"></i>
+        <span>Low Quality (Faster)</span>
+    </div>
+    <div class="quality-option" onclick="downloadWithQuality('medium')">
+        <i class="fas fa-tablet-alt"></i>
+        <span>Medium Quality</span>
+    </div>
+    <div class="quality-option" onclick="downloadWithQuality('sd')">
+        <i class="fas fa-laptop"></i>
+        <span>Standard Quality</span>
+    </div>
+    <div class="quality-option" onclick="downloadWithQuality('hd')">
+        <i class="fas fa-crown"></i>
+        <span>HD Quality (Original)</span>
+    </div>
+</div> 

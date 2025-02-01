@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block body_class %}video-page{% endblock %}
+
+{% block title %}Haldi Ceremony Videos{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Haldi Ceremony Videos</h1>
+    <h3>Total Videos: {{ total_videos }}</h3>
+    
+    <div class="video-gallery">
+        {% for video in videos %}
+        <div class="video-container" data-video-path="{{ video.video_path }}" data-thumbnail="{{ video.thumbnail }}" data-name="{{ video.name }}">
+            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+                 data-src="{{ video.thumbnail }}" 
+                 alt="Video thumbnail" 
+                 class="video-thumbnail lazy-load"
+                 loading="lazy">
+            <div class="video-overlay">
+                <i class="fas fa-play"></i>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Floating Navigation -->
+<div class="photo-page-nav">
+    <a href="{{ url_for('index') }}" class="btn">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+    </a>
+    <a href="{{ url_for('videos') }}" class="btn">
+        <i class="fas fa-arrow-left"></i>
+        <span>Back to Album</span>
+    </a>
+</div>
+
+<!-- Include Video Popup -->
+{% include 'video_popup.html' %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Scroll to top functionality
+    document.querySelector('.scroll-to-top').addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // Show floating nav buttons text on hover
+    const floatingNav = document.querySelector('.floating-nav');
+    if (floatingNav) {
+        floatingNav.addEventListener('mouseenter', function() {
+            this.classList.add('show-text');
+        });
+        floatingNav.addEventListener('mouseleave', function() {
+            this.classList.remove('show-text');
+        });
+    }
+</script>
+{% endblock %} 

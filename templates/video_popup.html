@@ -1,0 +1,78 @@
+<!-- Video Popup -->
+<div id="video-popup" class="popup">
+    <div class="popup-content">
+        <div class="popup-header">
+            <span class="video-name"></span>
+            <button class="close-popup" onclick="closeVideoPopup()">&times;</button>
+        </div>
+        
+        <div class="video-wrapper">
+            <!-- Thumbnail Container -->
+            <div class="video-thumbnail-container">
+                <img class="video-thumbnail" alt="Video thumbnail">
+                <div class="play-overlay" onclick="playVideo()">
+                    <i class="fas fa-play"></i>
+                </div>
+            </div>
+            
+            <!-- HTML5 Video Player -->
+            <video id="videoPlayer" controls playsinline preload="auto" style="display: none; width: 100%; height: 100%; max-height: 80vh; background: black;">
+                <source type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            
+            <!-- Loading Overlay -->
+            <div class="video-loading-overlay">
+                <div class="spinner"></div>
+                <p>Loading video...</p>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress"></div>
+                    </div>
+                    <span class="progress-text">0%</span>
+                </div>
+            </div>
+            
+            <!-- Error Overlay -->
+            <div class="video-error-overlay">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Failed to load video</p>
+                <button onclick="retryVideoLoad()" class="retry-button">
+                    <i class="fas fa-sync-alt"></i> Retry
+                </button>
+            </div>
+        </div>
+        
+        <!-- Navigation Buttons -->
+        <button class="popup-nav-btn prev" onclick="showPreviousVideo()">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <button class="popup-nav-btn next" onclick="showNextVideo()">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        
+        <!-- Controls -->
+        <div class="popup-controls">
+            <button class="download-btn" onclick="showDownloadModal()" title="Download Video">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Download Quality Modal -->
+<div id="download-modal" class="quality-modal">
+    <h3>Choose Download Quality</h3>
+    <div class="quality-options">
+        <button class="quality-option" onclick="downloadVideo('4k')">
+            <i class="fas fa-film"></i>
+            <span>4K Quality</span>
+            <small>Best quality, larger file size</small>
+        </button>
+        <button class="quality-option" onclick="downloadVideo('720p')">
+            <i class="fas fa-video"></i>
+            <span>720p Quality</span>
+            <small>Good quality, smaller file size</small>
+        </button>
+    </div>
+</div> 
